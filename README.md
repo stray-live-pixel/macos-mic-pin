@@ -6,8 +6,6 @@ Keep your preferred microphone selected on macOS. A tiny Swift/CoreAudio agent �
 - Leaves other devices alone while your microphone is disconnected; restores it when it returns.
 - Starts at login. Apps with their own explicit microphone selection are unaffected.
 
-Закрепляет выбранный микрофон в macOS и автоматически возвращает его при переключениях. Запускается при входе в систему; если микрофон отключён — не вмешивается. Без сторонних зависимостей и записи звука.
-
 ## Install
 
 Requires macOS and Xcode Command Line Tools (`xcode-select --install`).
@@ -28,3 +26,34 @@ Uses the device UID, not its display name. Manual changes to the default microph
 ```
 
 Installed under `~/.local/lib/macos-mic-pin`; LaunchAgent: `~/Library/LaunchAgents/local.macos-mic-pin.plist`. Errors: `~/Library/Logs/macos-mic-pin.log`.
+
+---
+
+# macos-mic-pin — Русский
+
+Закрепляет предпочтительный микрофон в macOS. Небольшой агент на Swift/CoreAudio — без сторонних зависимостей, периодического опроса и записи звука.
+
+- Возвращает выбранный микрофон, когда macOS или приложение меняет устройство ввода по умолчанию.
+- Не вмешивается, пока микрофон отключён; возвращает его после подключения.
+- Запускается при входе в систему. Не влияет на приложения, в которых микрофон выбран явно.
+
+## Установка
+
+Нужны macOS и Xcode Command Line Tools (`xcode-select --install`).
+
+```sh
+git clone https://github.com/stray-live-pixel/macos-mic-pin.git
+cd macos-mic-pin
+./install.sh                        # показать устройства ввода и их UID
+./install.sh "DEVICE_UID"           # вставить UID из второго столбца
+```
+
+Используется UID устройства, а не его название. Пока предпочтительный микрофон подключён, ручные переключения микрофона по умолчанию тоже отменяются.
+
+## Удаление
+
+```sh
+./install.sh --uninstall
+```
+
+Устанавливается в `~/.local/lib/macos-mic-pin`; LaunchAgent: `~/Library/LaunchAgents/local.macos-mic-pin.plist`. Ошибки: `~/Library/Logs/macos-mic-pin.log`.
