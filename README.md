@@ -6,6 +6,8 @@ Keep your preferred microphone selected on macOS. A tiny Swift/CoreAudio agent �
 - Leaves other devices alone while your microphone is disconnected; restores it when it returns.
 - Starts at login. Apps with their own explicit microphone selection are unaffected.
 
+Закрепляет выбранный микрофон в macOS и автоматически возвращает его при переключениях. Запускается при входе в систему; если микрофон отключён — не вмешивается. Без сторонних зависимостей и записи звука.
+
 ## Install
 
 Requires macOS and Xcode Command Line Tools (`xcode-select --install`).
