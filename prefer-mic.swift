@@ -1,5 +1,5 @@
-// Закрепляем выбранный микрофон: узнаём его UID, следим за изменениями
-// аудиоустройств и при необходимости возвращаем его как системный вход.
+// Выбираем первый доступный микрофон из списка UID по приоритету,
+// следим за изменениями устройств и возвращаем его как системный вход.
 // Сам звук программа не читает и не записывает.
 //
 // Несколько обозначений Swift для чтения этого файла:
@@ -56,25 +56,34 @@ func hasInput(_ id: AudioObjectID) -> Bool {
     return AudioObjectGetPropertyDataSize(id, &a, 0, nil, &size) == noErr && size > 0
 }
 // Режим --list только печатает название и UID через табуляцию и завершается.
-// UID из второго столбца нужно передать программе для закрепления микрофона.
-if CommandLine.arguments.contains("--list") {
+// UID из второго столбца передаём программе в порядке приоритета.
+if Array(CommandLine.arguments.dropFirst()) == ["--list"] {
     for id in devices() where hasInput(id) {
         print("\(stringProperty(id, kAudioObjectPropertyName) ?? "?")\t\(stringProperty(id, kAudioDevicePropertyDeviceUID) ?? "?")")
     }
     exit(0)
 }
-// В аргументах первым идёт имя программы, вторым — нужный UID.
-// Поэтому для обычного запуска ожидаем ровно два элемента.
-guard CommandLine.arguments.count == 2 else {
-    fputs("Usage: prefer-mic DEVICE_UID | --list\n", stderr)
+// После имени программы идёт один или несколько UID: самый важный первым.
+let preferredUIDs = Array(CommandLine.arguments.dropFirst())
+guard !preferredUIDs.isEmpty, preferredUIDs.allSatisfy({ !$0.isEmpty }) else {
+    fputs("Usage: prefer-mic DEVICE_UID [DEVICE_UID ...] | --list\n", stderr)
     exit(2)
 }
-let uid = CommandLine.arguments[1]
 // Основное действие: вернуть нужный микрофон, только если это необходимо.
 func restore() {
-    // Ищем подключённый вход по UID, а не по названию или временному ID.
-    // $0 — проверяемое устройство. Если его нет, ничего не переключаем.
-    guard var preferred = devices().first(where: { stringProperty($0, kAudioDevicePropertyDeviceUID) == uid && hasInput($0) }) else { return }
+    // Один раз читаем подключённые входы, затем проверяем UID по приоритету.
+    // Порядок устройств CoreAudio не должен влиять на наш выбор.
+    let inputs = devices().filter { hasInput($0) }
+    var selected: AudioObjectID?
+    for uid in preferredUIDs {
+        if let input = inputs.first(where: { stringProperty($0, kAudioDevicePropertyDeviceUID) == uid }) {
+            selected = input
+            break
+        }
+    }
+    // Если ни одного предпочтительного входа нет, оставляем выбор macOS
+    // и пользователя в настройках системы без изменений.
+    guard var preferred = selected else { return }
     var a = address(kAudioHardwarePropertyDefaultInputDevice)
     // Узнаём, какой микрофон сейчас выбран входом по умолчанию.
     var current = AudioObjectID(0)
@@ -113,7 +122,7 @@ for selector in [kAudioHardwarePropertyDevices, kAudioHardwarePropertyDefaultInp
     }
 }
 // Сразу применяем предпочтение, затем остаёмся работать и ждать событий.
-// При последующих ручных переключениях тоже возвращаем выбранный UID.
+// При ручных переключениях тоже возвращаем первый доступный UID из списка.
 // Автозапуск при входе настраивает install.sh, а не этот Swift-файл.
 restore()
 dispatchMain()
