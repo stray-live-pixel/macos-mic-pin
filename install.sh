@@ -8,6 +8,7 @@ PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 DOMAIN="gui/$(id -u)"
 
 if [[ "${1:-}" == "--uninstall" ]]; then
+    [[ $# -eq 1 ]] || { echo 'Usage: ./install.sh --uninstall' >&2; exit 2; }
     if launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1; then
         launchctl bootout "$DOMAIN/$LABEL"
     fi
@@ -17,16 +18,19 @@ if [[ "${1:-}" == "--uninstall" ]]; then
     exit 0
 fi
 
+for uid in "$@"; do
+    [[ -n "$uid" ]] || { echo 'Device UIDs must not be empty.' >&2; exit 2; }
+done
+
 BUILD="$(mktemp -d)"
 trap 'rm -rf "$BUILD"' EXIT
 swiftc -O -module-cache-path "$BUILD/cache" "$ROOT/prefer-mic.swift" -o "$BUILD/prefer-mic"
 
 if [[ $# -eq 0 ]]; then
     "$BUILD/prefer-mic" --list
-    echo 'Copy a device UID from the second column, then run: ./install.sh "DEVICE_UID"'
+    echo 'Copy device UIDs from the second column in priority order: ./install.sh "FIRST_UID" ["SECOND_UID" ...]'
     exit 0
 fi
-[[ $# -eq 1 && -n "$1" ]] || { echo 'Usage: ./install.sh [DEVICE_UID | --uninstall]' >&2; exit 2; }
 
 xml_escape() { printf '%s' "$1" | sed 's/\&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
 mkdir -p "$APP" "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
@@ -37,7 +41,11 @@ cat > "$BUILD/agent.plist" <<PLIST
 <key>Label</key><string>$LABEL</string>
 <key>ProgramArguments</key><array>
 <string>$(xml_escape "$APP/prefer-mic")</string>
-<string>$(xml_escape "$1")</string>
+PLIST
+for uid in "$@"; do
+    printf '<string>%s</string>\n' "$(xml_escape "$uid")" >> "$BUILD/agent.plist"
+done
+cat >> "$BUILD/agent.plist" <<PLIST
 </array>
 <key>RunAtLoad</key><true/>
 <key>KeepAlive</key><true/>
